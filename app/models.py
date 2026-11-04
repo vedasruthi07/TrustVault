@@ -127,4 +127,12 @@ class AuditLog(db.Model):
         server_default=db.func.now()
     )
 
+    previous_hash = db.Column(
+        db.String(64),
+        nullable=True
+    )
 
+    entry_hash = db.Column(
+        db.String(64),
+        nullable=True
+    )
