@@ -47,6 +47,11 @@ class Document(db.Model):
         db.DateTime,
         server_default=db.func.now()
     )
+    is_deleted = db.Column(
+    db.Boolean,
+    nullable=False,
+    default=False
+)
 
     owner = db.relationship("User", backref="documents")
 class DocumentPermission(db.Model):
