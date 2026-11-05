@@ -1,0 +1,102 @@
+
+/* General page styling */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f7fb;
+    color: #263445;
+    min-height: 100vh;
+}
+
+/* Navigation bar */
+.navbar {
+    background-color: #14243a !important;
+    padding: 14px 0;
+}
+
+.navbar-brand {
+    font-size: 23px;
+    letter-spacing: 0.5px;
+}
+
+/* Main content */
+.container {
+    max-width: 1140px;
+}
+
+/* Page headings */
+h1, h2, h3 {
+    color: #14243a;
+    font-weight: 600;
+}
+
+/* Cards */
+.card {
+    border: 1px solid #e3e9f0;
+    border-radius: 10px;
+    box-shadow: 0 3px 12px rgba(20, 36, 58, 0.06);
+}
+
+.card-header {
+    background-color: #ffffff;
+    font-weight: 600;
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: #2563eb;
+    border-color: #2563eb;
+}
+
+.btn-primary:hover {
+    background-color: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+/* Form fields */
+.form-control,
+.form-select {
+    border-radius: 7px;
+    padding: 10px;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.12);
+}
+
+/* Tables */
+.table {
+    vertical-align: middle;
+}
+
+/* Status labels */
+.status-active {
+    color: #15803d;
+    font-weight: 600;
+}
+
+.status-revoked {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+/* Footer */
+.footer {
+    color: #64748b;
+    font-size: 13px;
+    text-align: center;
+    padding: 20px 0;
+}
+
+/* Mobile layout */
+@media (max-width: 576px) {
+    .container {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    h1 {
+        font-size: 25px;
+    }
+}

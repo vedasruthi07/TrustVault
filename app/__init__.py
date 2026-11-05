@@ -78,10 +78,21 @@ def create_app():
     from app.routes.permissions import permissions_bp
     from app.routes.documents import documents_bp
     from app.routes.admin import admin_bp
+    from app.routes.auth import auth_bp
+    from app.routes.pages import pages_bp
 
     app.register_blueprint(permissions_bp)
     app.register_blueprint(documents_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(pages_bp)
+    @app.context_processor
+    def inject_current_user():
+        from app.security import get_current_user
+
+        return {
+            "current_user": get_current_user()
+        }
 
     @app.route("/api/csrf-token", methods=["GET"])
     def get_csrf_token():
