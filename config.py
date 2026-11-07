@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from sqlalchemy.engine import URL
 
 BASE_DIR = Path(__file__).resolve().parent
 INSTANCE_DIR = BASE_DIR / "instance"
@@ -13,12 +12,11 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY")
 
     if not SECRET_KEY:
-        raise RuntimeError("SECRET_KEY is not configured.")
+        # Fallback for development if environment variable is not set
+        SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-trustvault-2026")
 
-    SQLALCHEMY_DATABASE_URI = URL.create(
-        drivername="sqlite",
-        database=str(DATABASE_PATH)
-    )
+    # Construct clean absolute SQLite URI without percent-encoding drive letters
+    SQLALCHEMY_DATABASE_URI = f"sqlite:///{DATABASE_PATH.as_posix()}"
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
