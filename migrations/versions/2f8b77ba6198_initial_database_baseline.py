@@ -1,4 +1,3 @@
-
 """Initial database baseline
 
 Revision ID: 2f8b77ba6198

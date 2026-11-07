@@ -19,12 +19,7 @@ from sqlalchemy import or_
 from werkzeug.utils import secure_filename
 
 from app import limiter
-from app.models import (
-    db,
-    Document,
-    DocumentPermission,
-    User
-)
+from app.models import db, Document, DocumentPermission, User
 from app.security import get_current_user
 from app.audit import log_activity
 from app.document_access import authorize_document_action
@@ -97,7 +92,7 @@ def upload_document():
             "error": "File size exceeds the allowed limit"
         }), 413
 
-    # Validate the actual PDF structure.
+    # Validate actual PDF structure.
     try:
         with pymupdf.open(
             stream=file_data,
@@ -496,7 +491,7 @@ def search_documents():
     if current_user is None:
         abort(401)
 
-    # Owned documents and documents shared with this user.
+    # Get owned documents and documents shared with the user.
     shared_document_ids = db.session.query(
         DocumentPermission.document_id
     ).filter(
@@ -513,7 +508,8 @@ def search_documents():
 
     # Search by title.
     title = request.args.get(
-        "title", ""
+        "title",
+        ""
     ).strip()
 
     if title:
@@ -523,7 +519,8 @@ def search_documents():
 
     # Search by owner username.
     owner = request.args.get(
-        "owner", ""
+        "owner",
+        ""
     ).strip()
 
     if owner:
@@ -535,7 +532,8 @@ def search_documents():
 
     # Search by category.
     category = request.args.get(
-        "category", ""
+        "category",
+        ""
     ).strip()
 
     if category:
@@ -589,12 +587,28 @@ def search_documents():
 
     for document in documents:
 
+        # Determine this user's permission.
+        if document.owner_id == current_user.id:
+            permission_level = "OWNER"
+
+        else:
+            document_permission = DocumentPermission.query.filter_by(
+                document_id=document.id,
+                user_id=current_user.id
+            ).first()
+
+            permission_level = (
+                document_permission.permission_level
+                if document_permission else None
+            )
+
         results.append({
             "id": document.id,
             "title": document.title,
             "filename": document.original_filename,
             "category": document.category,
             "owner": document.owner.username,
+            "permission": permission_level,
             "created_at": (
                 document.created_at.isoformat()
                 if document.created_at else None

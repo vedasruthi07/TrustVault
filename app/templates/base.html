@@ -14,7 +14,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
-<body class="bg-light">
+<body class="bg-light"
+      data-current-username="{{ current_user.username if current_user else '' }}">
 
     <!-- Navigation bar -->
     <nav class="navbar navbar-dark bg-dark">

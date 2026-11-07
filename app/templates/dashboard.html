@@ -5,6 +5,7 @@
 
 {% block content %}
 
+<!-- Dashboard Header -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1>TrustVault Dashboard</h1>
@@ -51,8 +52,8 @@
             <div class="mb-3">
                 <label class="form-label">Select PDF</label>
                 <input type="file" id="documentFile"
-                       class="form-control" accept=".pdf,application/pdf"
-                       required>
+                       class="form-control"
+                       accept=".pdf,application/pdf" required>
             </div>
 
             <button type="submit" class="btn btn-primary">
@@ -71,7 +72,6 @@
 
         <form id="searchForm">
             <div class="row g-3">
-
                 <div class="col-md-6">
                     <label class="form-label">Document Name</label>
                     <input type="text" id="searchTitle"
@@ -99,7 +99,6 @@
                     <label class="form-label">To Date</label>
                     <input type="date" id="dateTo" class="form-control">
                 </div>
-
             </div>
 
             <button type="submit" class="btn btn-primary mt-3">
@@ -129,7 +128,6 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-
                 <tbody id="myDocuments">
                     <tr>
                         <td colspan="4">Loading documents...</td>
@@ -156,10 +154,84 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-
                 <tbody id="sharedDocuments">
                     <tr>
                         <td colspan="5">Loading shared documents...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Document Sharing -->
+<div id="sharePanel" class="card mb-4 d-none">
+    <div class="card-body">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h4 class="mb-1">Manage Document Access</h4>
+                <p class="text-muted mb-0">
+                    Document: <strong id="shareDocumentTitle"></strong>
+                </p>
+            </div>
+
+            <button type="button" id="closeSharePanel"
+                    class="btn btn-outline-secondary btn-sm">
+                Close
+            </button>
+        </div>
+
+        <form id="shareForm" class="row g-3">
+            <input type="hidden" id="shareDocumentId">
+
+            <div class="col-md-5">
+                <label for="shareUsername" class="form-label">
+                    Username
+                </label>
+                <input type="text" id="shareUsername"
+                       class="form-control" maxlength="80"
+                       required placeholder="Enter registered username">
+            </div>
+
+            <div class="col-md-4">
+                <label for="sharePermission" class="form-label">
+                    Permission
+                </label>
+                <select id="sharePermission" class="form-select" required>
+                    <option value="READ">READ — View and download</option>
+                    <option value="EDIT">EDIT — View, download and edit</option>
+                </select>
+            </div>
+
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-success w-100">
+                    Grant Access
+                </button>
+            </div>
+        </form>
+
+        <div id="shareMessage" class="mt-3" role="status"></div>
+
+        <hr>
+
+        <h5>People with access</h5>
+
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Permission</th>
+                        <th>Granted At</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="documentPermissions">
+                    <tr>
+                        <td colspan="4">
+                            Select a document to view its access list.
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -176,30 +248,40 @@
 
 <script>
 
-// Logged-in user's username
-const currentUsername = {{ current_user.username | tojson }};
+// --------------------------------------------------
+// 1. PAGE ELEMENTS
+// --------------------------------------------------
+
+const currentUsername = document.body.dataset.currentUsername;
 
 const myDocuments = document.getElementById("myDocuments");
 const sharedDocuments = document.getElementById("sharedDocuments");
 const pageMessage = document.getElementById("pageMessage");
 
+const sharePanel = document.getElementById("sharePanel");
+const shareDocumentId = document.getElementById("shareDocumentId");
+const shareDocumentTitle = document.getElementById("shareDocumentTitle");
+const shareUsername = document.getElementById("shareUsername");
+const sharePermission = document.getElementById("sharePermission");
+const shareMessage = document.getElementById("shareMessage");
+const documentPermissions = document.getElementById("documentPermissions");
 
-// Display messages
+
+// --------------------------------------------------
+// 2. COMMON FUNCTIONS
+// --------------------------------------------------
+
 function showMessage(element, message, type) {
     element.textContent = message;
     element.className = "alert alert-" + type;
 }
 
-
-// Create table cells safely
 function createCell(text) {
     const cell = document.createElement("td");
     cell.textContent = text || "-";
     return cell;
 }
 
-
-// Create action links
 function createLink(label, url) {
     const link = document.createElement("a");
 
@@ -210,10 +292,7 @@ function createLink(label, url) {
     return link;
 }
 
-
-// Get CSRF token
 async function getCsrfToken() {
-
     const response = await fetch("/api/csrf-token");
 
     if (!response.ok) {
@@ -221,14 +300,10 @@ async function getCsrfToken() {
     }
 
     const data = await response.json();
-
     return data.csrf_token;
 }
 
-
-// Empty table message
 function emptyRow(columns, message) {
-
     const row = document.createElement("tr");
     const cell = document.createElement("td");
 
@@ -236,27 +311,26 @@ function emptyRow(columns, message) {
     cell.textContent = message;
 
     row.appendChild(cell);
-
     return row;
 }
 
 
-// Load documents
+// --------------------------------------------------
+// 3. LOAD DOCUMENTS
+// --------------------------------------------------
+
 async function loadDocuments(filters = {}) {
 
     myDocuments.replaceChildren();
     sharedDocuments.replaceChildren();
 
     try {
-
         const params = new URLSearchParams();
 
-        Object.keys(filters).forEach(function (key) {
-
+        Object.keys(filters).forEach(function(key) {
             if (filters[key]) {
                 params.append(key, filters[key]);
             }
-
         });
 
         const response = await fetch(
@@ -269,18 +343,17 @@ async function loadDocuments(filters = {}) {
 
         const data = await response.json();
 
-        data.documents.forEach(function (doc) {
-
-            // Check whether the logged-in user owns this document
-            const isOwner = doc.owner === currentUsername;
+        data.documents.forEach(function(doc) {
 
             const row = document.createElement("tr");
-
             row.appendChild(createCell(doc.title));
 
-            if (isOwner) {
+            // Use the permission returned by the backend.
+            const permission = doc.permission;
 
-                // My Documents
+            // OWNER DOCUMENT
+            if (permission === "OWNER") {
+
                 row.appendChild(createCell(doc.category));
 
                 row.appendChild(createCell(
@@ -291,57 +364,59 @@ async function loadDocuments(filters = {}) {
 
                 const actions = document.createElement("td");
 
-                // View
                 actions.appendChild(createLink(
                     "View",
                     "/api/documents/" + doc.id + "/view"
                 ));
 
-                // Download
                 actions.appendChild(createLink(
                     "Download",
                     "/api/documents/" + doc.id + "/download"
                 ));
 
-                // Edit
                 const editButton = document.createElement("button");
 
                 editButton.textContent = "Edit";
                 editButton.className = "btn btn-sm btn-warning me-2";
 
-                editButton.addEventListener("click", function () {
-
+                editButton.addEventListener("click", function() {
                     editDocument(
                         doc.id,
                         doc.title,
                         doc.category
                     );
-
                 });
 
                 actions.appendChild(editButton);
 
-                // Delete
                 const deleteButton = document.createElement("button");
 
                 deleteButton.textContent = "Delete";
-                deleteButton.className = "btn btn-sm btn-danger";
+                deleteButton.className = "btn btn-sm btn-danger me-2";
 
-                deleteButton.addEventListener("click", function () {
-
+                deleteButton.addEventListener("click", function() {
                     deleteDocument(doc.id);
-
                 });
 
                 actions.appendChild(deleteButton);
 
-                row.appendChild(actions);
+                const shareButton = document.createElement("button");
 
+                shareButton.textContent = "Share";
+                shareButton.className = "btn btn-sm btn-outline-success";
+
+                shareButton.addEventListener("click", function() {
+                    openSharePanel(doc.id, doc.title);
+                });
+
+                actions.appendChild(shareButton);
+
+                row.appendChild(actions);
                 myDocuments.appendChild(row);
 
             } else {
 
-                // Shared Documents
+                // SHARED DOCUMENT
                 row.appendChild(createCell(doc.owner));
                 row.appendChild(createCell(doc.category));
 
@@ -363,86 +438,307 @@ async function loadDocuments(filters = {}) {
                     "/api/documents/" + doc.id + "/download"
                 ));
 
-                row.appendChild(actions);
+                // EDIT BUTTON ONLY FOR EDIT PERMISSION
+                if (permission === "EDIT") {
 
+                    const editButton = document.createElement("button");
+
+                    editButton.textContent = "Edit";
+                    editButton.className = "btn btn-sm btn-warning me-2";
+
+                    editButton.addEventListener("click", function() {
+                        editDocument(
+                            doc.id,
+                            doc.title,
+                            doc.category
+                        );
+                    });
+
+                    actions.appendChild(editButton);
+                }
+
+                row.appendChild(actions);
                 sharedDocuments.appendChild(row);
             }
 
         });
 
-        // Show empty messages
         if (myDocuments.children.length === 0) {
-
             myDocuments.appendChild(
                 emptyRow(4, "No documents uploaded yet.")
             );
-
         }
 
         if (sharedDocuments.children.length === 0) {
-
             sharedDocuments.appendChild(
                 emptyRow(5, "No shared documents found.")
             );
-
         }
 
     } catch (error) {
-
         showMessage(pageMessage, error.message, "danger");
-
     }
 }
 
 
-// Upload document
+// --------------------------------------------------
+// 4. OPEN SHARE PANEL
+// --------------------------------------------------
+
+async function openSharePanel(id, title) {
+
+    shareDocumentId.value = id;
+    shareDocumentTitle.textContent = title;
+    shareUsername.value = "";
+    shareMessage.textContent = "";
+
+    sharePanel.classList.remove("d-none");
+
+    sharePanel.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+
+    await loadDocumentPermissions(id);
+}
+
+
+// --------------------------------------------------
+// 5. CLOSE SHARE PANEL
+// --------------------------------------------------
+
+document.getElementById("closeSharePanel").addEventListener(
+    "click",
+    function() {
+        sharePanel.classList.add("d-none");
+    }
+);
+
+
+// --------------------------------------------------
+// 6. LOAD DOCUMENT PERMISSIONS
+// --------------------------------------------------
+
+async function loadDocumentPermissions(id) {
+
+    documentPermissions.replaceChildren();
+
+    try {
+        const response = await fetch(
+            "/api/documents/" + id + "/permissions"
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || data.message ||
+                "Could not load access list."
+            );
+        }
+
+        const permissions = data.permissions || [];
+
+        if (permissions.length === 0) {
+            documentPermissions.appendChild(
+                emptyRow(4, "No one else has access to this document.")
+            );
+            return;
+        }
+
+        permissions.forEach(function(item) {
+
+            const row = document.createElement("tr");
+
+            row.appendChild(createCell(item.username));
+            row.appendChild(createCell(item.permission));
+
+            row.appendChild(createCell(
+                item.granted_at
+                    ? item.granted_at.replace("T", " ").split(".")[0]
+                    : "-"
+            ));
+
+            const actionCell = document.createElement("td");
+
+            const revokeButton = document.createElement("button");
+
+            revokeButton.type = "button";
+            revokeButton.textContent = "Revoke";
+            revokeButton.className = "btn btn-sm btn-outline-danger";
+
+            revokeButton.addEventListener("click", function() {
+                revokeDocumentPermission(id, item.user_id);
+            });
+
+            actionCell.appendChild(revokeButton);
+            row.appendChild(actionCell);
+
+            documentPermissions.appendChild(row);
+        });
+
+    } catch (error) {
+        documentPermissions.appendChild(
+            emptyRow(4, error.message)
+        );
+    }
+}
+
+
+// --------------------------------------------------
+// 7. GRANT READ OR EDIT ACCESS
+// --------------------------------------------------
+
+document.getElementById("shareForm").addEventListener(
+    "submit",
+    async function(event) {
+
+        event.preventDefault();
+
+        const id = shareDocumentId.value;
+        const username = shareUsername.value.trim();
+        const permission = sharePermission.value;
+
+        if (!username) {
+            showMessage(shareMessage, "Enter a username.", "warning");
+            return;
+        }
+
+        try {
+            const token = await getCsrfToken();
+
+            const response = await fetch(
+                "/api/documents/" + id + "/permissions",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": token
+                    },
+
+                    body: JSON.stringify({
+                        username: username,
+                        permission: permission
+                    })
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error || data.message ||
+                    "Could not grant access."
+                );
+            }
+
+            showMessage(
+                shareMessage,
+                data.message || "Access granted successfully.",
+                "success"
+            );
+
+            shareUsername.value = "";
+
+            await loadDocumentPermissions(id);
+
+        } catch (error) {
+            showMessage(shareMessage, error.message, "danger");
+        }
+    }
+);
+
+
+// --------------------------------------------------
+// 8. REVOKE ACCESS
+// --------------------------------------------------
+
+async function revokeDocumentPermission(documentId, userId) {
+
+    if (!confirm("Revoke this user's access to the document?")) {
+        return;
+    }
+
+    try {
+        const token = await getCsrfToken();
+
+        const response = await fetch(
+            "/api/documents/" + documentId + "/permissions/" + userId,
+            {
+                method: "DELETE",
+                headers: {
+                    "X-CSRFToken": token
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || data.message ||
+                "Could not revoke access."
+            );
+        }
+
+        showMessage(
+            shareMessage,
+            data.message || "Access revoked successfully.",
+            "success"
+        );
+
+        await loadDocumentPermissions(documentId);
+        await loadDocuments();
+
+    } catch (error) {
+        showMessage(shareMessage, error.message, "danger");
+    }
+}
+
+
+// --------------------------------------------------
+// 9. UPLOAD DOCUMENT
+// --------------------------------------------------
+
 document.getElementById("uploadForm").addEventListener(
     "submit",
-    async function (event) {
+    async function(event) {
 
         event.preventDefault();
 
         const file = document.getElementById("documentFile").files[0];
 
         if (!file) {
-
             showMessage(
                 document.getElementById("uploadMessage"),
                 "Please select a PDF file.",
                 "warning"
             );
-
             return;
         }
 
         const formData = new FormData();
 
         formData.append("file", file);
-
         formData.append(
             "title",
             document.getElementById("documentTitle").value
         );
-
         formData.append(
             "category",
             document.getElementById("documentCategory").value
         );
 
         try {
-
             const token = await getCsrfToken();
 
             const response = await fetch("/api/documents/upload", {
-
                 method: "POST",
-
                 headers: {
                     "X-CSRFToken": token
                 },
-
                 body: formData
-
             });
 
             const data = await response.json();
@@ -462,20 +758,20 @@ document.getElementById("uploadForm").addEventListener(
             await loadDocuments();
 
         } catch (error) {
-
             showMessage(
                 document.getElementById("uploadMessage"),
                 error.message,
                 "danger"
             );
-
         }
-
     }
 );
 
 
-// Edit document
+// --------------------------------------------------
+// 10. EDIT DOCUMENT
+// --------------------------------------------------
+
 async function editDocument(id, oldTitle, oldCategory) {
 
     const title = prompt("Enter document title:", oldTitle);
@@ -490,13 +786,11 @@ async function editDocument(id, oldTitle, oldCategory) {
     if (category === null) return;
 
     try {
-
         const token = await getCsrfToken();
 
         const response = await fetch(
             "/api/documents/" + id,
             {
-
                 method: "PATCH",
 
                 headers: {
@@ -508,7 +802,6 @@ async function editDocument(id, oldTitle, oldCategory) {
                     title: title,
                     category: category
                 })
-
             }
         );
 
@@ -527,15 +820,15 @@ async function editDocument(id, oldTitle, oldCategory) {
         await loadDocuments();
 
     } catch (error) {
-
         showMessage(pageMessage, error.message, "danger");
-
     }
-
 }
 
 
-// Delete document
+// --------------------------------------------------
+// 11. DELETE DOCUMENT
+// --------------------------------------------------
+
 async function deleteDocument(id) {
 
     if (!confirm("Are you sure you want to delete this document?")) {
@@ -543,19 +836,15 @@ async function deleteDocument(id) {
     }
 
     try {
-
         const token = await getCsrfToken();
 
         const response = await fetch(
             "/api/documents/" + id,
             {
-
                 method: "DELETE",
-
                 headers: {
                     "X-CSRFToken": token
                 }
-
             }
         );
 
@@ -574,55 +863,52 @@ async function deleteDocument(id) {
         await loadDocuments();
 
     } catch (error) {
-
         showMessage(pageMessage, error.message, "danger");
-
     }
-
 }
 
 
-// Search documents
+// --------------------------------------------------
+// 12. SEARCH DOCUMENTS
+// --------------------------------------------------
+
 document.getElementById("searchForm").addEventListener(
     "submit",
-    function (event) {
+    function(event) {
 
         event.preventDefault();
 
         const filters = {
-
             title: document.getElementById("searchTitle").value,
-
             owner: document.getElementById("searchOwner").value,
-
             category: document.getElementById("searchCategory").value,
-
             date_from: document.getElementById("dateFrom").value,
-
             date_to: document.getElementById("dateTo").value
-
         };
 
         loadDocuments(filters);
-
     }
 );
 
 
-// Clear search
+// --------------------------------------------------
+// 13. CLEAR SEARCH
+// --------------------------------------------------
+
 document.getElementById("clearSearch").addEventListener(
     "click",
-    function () {
-
-        setTimeout(function () {
+    function() {
+        setTimeout(function() {
             loadDocuments();
         }, 0);
-
     }
 );
 
 
-// Load documents when dashboard opens
+// --------------------------------------------------
+// 14. INITIAL PAGE LOAD
+// --------------------------------------------------
+
 loadDocuments();
 
 </script>
