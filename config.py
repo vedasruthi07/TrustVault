@@ -1,8 +1,12 @@
-
 import os
 from pathlib import Path
+from sqlalchemy.engine import URL
 
 BASE_DIR = Path(__file__).resolve().parent
+INSTANCE_DIR = BASE_DIR / "instance"
+DATABASE_PATH = INSTANCE_DIR / "trustvault.db"
+
+INSTANCE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class Config:
@@ -11,8 +15,9 @@ class Config:
     if not SECRET_KEY:
         raise RuntimeError("SECRET_KEY is not configured.")
 
-    SQLALCHEMY_DATABASE_URI = (
-        f"sqlite:///{BASE_DIR / 'instance' / 'trustvault.db'}"
+    SQLALCHEMY_DATABASE_URI = URL.create(
+        drivername="sqlite",
+        database=str(DATABASE_PATH)
     )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -23,6 +28,7 @@ class Config:
 
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+
     SESSION_COOKIE_SECURE = (
-    os.environ.get("APP_ENV", "development").lower() == "production"
-)
+        os.environ.get("APP_ENV", "development").lower() == "production"
+    )
