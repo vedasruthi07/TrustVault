@@ -239,6 +239,52 @@
     </div>
 </div>
 
+{% if current_user.role == 'ADMIN' %}
+<!-- Admin Audit Logs -->
+<div class="card mb-4" id="auditLogsSection">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h4>Audit Logs</h4>
+                <p class="text-muted mb-0">
+                    Monitor document and account activities.
+                </p>
+            </div>
+            <button type="button" id="refreshAuditLogs"
+                    class="btn btn-outline-primary">
+                Refresh Logs
+            </button>
+        </div>
+
+        <div id="auditLogsMessage" role="status"></div>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Outcome</th>
+                        <th>Document ID</th>
+                        <th>Details</th>
+                        <th>IP Address</th>
+                    </tr>
+                </thead>
+                <tbody id="auditLogsTable">
+                    <tr>
+                        <td colspan="7">Loading audit logs...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p id="auditLogsCount" class="text-muted mb-0"></p>
+    </div>
+</div>
+{% endif %}
+
+
 <div id="pageMessage" role="status"></div>
 
 {% endblock %}
@@ -906,10 +952,88 @@ document.getElementById("clearSearch").addEventListener(
 
 
 // --------------------------------------------------
-// 14. INITIAL PAGE LOAD
+// 14. LOAD ADMIN AUDIT LOGS
+// --------------------------------------------------
+
+const auditLogsTable = document.getElementById("auditLogsTable");
+
+async function loadAuditLogs() {
+    if (!auditLogsTable) return;
+
+    auditLogsTable.replaceChildren();
+
+    try {
+        const response = await fetch(
+            "/api/admin/audit-logs?limit=50&offset=0"
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Could not load audit logs."
+            );
+        }
+
+        const logs = data.audit_logs || [];
+
+        if (logs.length === 0) {
+            auditLogsTable.appendChild(
+                emptyRow(7, "No audit records found.")
+            );
+        } else {
+            logs.forEach(function(log) {
+                const row = document.createElement("tr");
+
+                row.appendChild(createCell(
+                    log.created_at
+                        ? log.created_at.replace("T", " ").split(".")[0]
+                        : "-"
+                ));
+
+                row.appendChild(createCell(log.actor_username));
+                row.appendChild(createCell(log.action));
+                row.appendChild(createCell(log.outcome));
+                row.appendChild(createCell(log.document_id));
+                row.appendChild(createCell(log.details));
+                row.appendChild(createCell(log.ip_address));
+
+                auditLogsTable.appendChild(row);
+            });
+        }
+
+        document.getElementById("auditLogsCount").textContent =
+            "Showing " + logs.length + " of " +
+            data.total + " audit records.";
+
+        document.getElementById("auditLogsMessage").textContent = "";
+
+    } catch (error) {
+        showMessage(
+            document.getElementById("auditLogsMessage"),
+            error.message,
+            "danger"
+        );
+    }
+}
+
+// Refresh button
+const refreshAuditLogsButton =
+    document.getElementById("refreshAuditLogs");
+
+if (refreshAuditLogsButton) {
+    refreshAuditLogsButton.addEventListener(
+        "click",
+        loadAuditLogs
+    );
+}
+
+// --------------------------------------------------
+// 15. INITIAL PAGE LOAD
 // --------------------------------------------------
 
 loadDocuments();
+loadAuditLogs();
 
 </script>
 
